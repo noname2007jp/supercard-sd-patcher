@@ -159,11 +159,17 @@ def apply_haxdiff(rom: bytearray, diff_path: Path, log) -> None:
     records, warnings = parse_haxdiff(text)
     for w in warnings:
         log(f"  [注意] {w}")
+    appended = 0
     for rec in records:
-        if len(rec.old) != len(rec.new):
-            raise ValueError(
-                f"{diff_path.name}: 0x{rec.offset:X} でサイズ変更を伴う差分"
-                f" ({len(rec.old)}B -> {len(rec.new)}B) は未対応です")
+        end = rec.offset + len(rec.new)
+        # 追加（旧データ0バイト、または旧データがROM末尾以降）の場合
+        if len(rec.old) == 0 or rec.offset >= len(rom):
+            if end > len(rom):
+                rom.extend(b"\xff" * (end - len(rom)))
+            rom[rec.offset:end] = rec.new
+            appended += len(rec.new)
+            continue
+        # 置換の場合: 旧データを照合
         cur = bytes(rom[rec.offset:rec.offset + len(rec.old)])
         if cur != rec.old:
             raise ValueError(
@@ -171,7 +177,8 @@ def apply_haxdiff(rom: bytearray, diff_path: Path, log) -> None:
                 f" (期待 {rec.old.hex()} / 実際 {cur.hex()})"
                 " → ROMのリビジョン違いの可能性があります")
         rom[rec.offset:rec.offset + len(rec.new)] = rec.new
-    log(f"           -> {len(records)} ハンク適用 (旧データ照合OK)")
+    log(f"           -> {len(records)} ハンク適用"
+        + (f" (末尾に {appended:,} バイト追加)" if appended else ""))
 
 
 # ==================================================================
