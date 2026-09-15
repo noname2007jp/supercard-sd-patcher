@@ -305,11 +305,17 @@ def patch_rom(mode: str, filein: Path, fileout: Path,
         for n in spec.patches:
             diff = td / stem / f"{n}.diff"
             if not diff.exists():
-                raise FileNotFoundError(
-                    f"{stem}/{n}.diff がありません "
-                    f"(このROMは指定MODEの一部に非対応の可能性: mode={mode})")
+                log(f"  [注意] {stem}/{n}.diff がありません "
+                    f"(MODE '{mode}' の一部機能はこのROMに非対応)")
+                continue
             log(f"  適用    : {stem}/{n}.diff")
-            apply_haxdiff(rom, diff, log)
+            try:
+                apply_haxdiff(rom, diff, log)
+            except ValueError as e:
+                if "レコードがありません" in str(e):
+                    log(f"  [注意] {n}.diff は空またはコメントのみのためスキップ")
+                    continue
+                raise
 
         fileout.parent.mkdir(parents=True, exist_ok=True)
         fileout.write_bytes(rom)
