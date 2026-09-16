@@ -57,7 +57,7 @@ def read_title(rom_path: Path) -> str:
 
 
 # ==================================================================
-# trunc.c 相当 (patcher は -a 16 で呼ぶ)。0xFF だけを削る点に注意
+# .c 相当 (patcher は -a 16 で呼ぶ)。0xFF だけを削る点に注意
 # ==================================================================
 def trunc(data: bytes, align: int = 16) -> bytearray:
     n = len(data)
@@ -295,6 +295,12 @@ def patch_rom(mode: str, filein: Path, fileout: Path,
         original_size = src.stat().st_size
         rom = trunc(src.read_bytes(), 16)
         log(f"  trunc   : {original_size:,} -> {len(rom):,} バイト (align 16)")
+        
+        # 既にパッチ適用済みかチェック (0x49Cが0x00000000の場合はSuperCardパッチ済み)
+        if len(rom) >= 0x4A0 and rom[0x49C:0x4A0] == b"\x00\x00\x00\x00":
+            raise RuntimeError(
+                "このROMは既にSuperCard SDパッチが適用されています。"
+                "元の未パッチROMを使用してください")
 
         with tarfile.open(patches_dir / matches[0], "r:xz") as tf:
             try:
