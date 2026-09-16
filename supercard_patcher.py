@@ -305,15 +305,20 @@ def patch_rom(mode: str, filein: Path, fileout: Path,
         for n in spec.patches:
             diff = td / stem / f"{n}.diff"
             if not diff.exists():
-                log(f"  [注意] {stem}/{n}.diff がありません "
-                    f"(MODE '{mode}' の一部機能はこのROMに非対応)")
+                log(f"  [注意] {stem}/{n}.diff が存在しません。"
+                    f"このROMではMODE '{mode}' の該当機能は利用できません")
                 continue
             log(f"  適用    : {stem}/{n}.diff")
             try:
                 apply_haxdiff(rom, diff, log)
             except ValueError as e:
                 if "レコードがありません" in str(e):
-                    log(f"  [注意] {n}.diff は空またはコメントのみのためスキップ")
+                    log(f"  [注意] {n}.diff は空のためスキップしました")
+                    continue
+                # オプション機能(1,2,3.diff)の不一致は警告でスキップ、基本パッチ(0.diff)はエラー
+                if n > 0:
+                    log(f"  [警告] {n}.diff の適用条件に一致しません。"
+                        f"このROMでは該当機能はスキップされました: {e}")
                     continue
                 raise
 
